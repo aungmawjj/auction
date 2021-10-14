@@ -18,19 +18,21 @@ func ExpFabric() {
 		fabric: fabtic,
 	}
 
+	fmt.Println("[fabric] deploying chaincode")
 	ccid, err := assetCC.Deploy()
 	check(err)
+	fmt.Println("chaincode id:", ccid)
 	fabtic.ChaincodeID = ccid
 
-	time.Sleep(5 * time.Second)
+	time.Sleep(20 * time.Second)
 	asset := Asset{
 		ID:    sha256Sum("asset1"),
 		Owner: newTransactor("keys/key0").From.Bytes(),
 	}
 	fmt.Println("[fabric] Adding asset, owner: ", hex.EncodeToString(asset.Owner))
-	txID, err := assetCC.AddAsset(asset)
+	_, err = assetCC.AddAsset(asset)
 	check(err)
-	check(fabtic.WaitTx(txID))
+	time.Sleep(5 * time.Second)
 
 	asset, err = assetCC.GetAsset(asset.ID)
 	check(err)
@@ -57,12 +59,12 @@ func ExpFabric() {
 
 	// bind auction address to asset
 	fmt.Println("\n[fabric] binding auction to asset")
-	txID, err = assetCC.SetAuction(SetAuctionArgs{
+	_, err = assetCC.SetAuction(SetAuctionArgs{
 		AssetID:   asset.ID,
 		AuctionID: auctionAddr.Bytes(),
 	})
 	check(err)
-	check(fabtic.WaitTx(txID))
+	time.Sleep(5 * time.Second)
 
 	// bid auction
 	fmt.Println("\n[ethereum] bidding auction")
@@ -98,9 +100,9 @@ func ExpFabric() {
 
 	// end auction on fabric
 	fmt.Println("\n[fabric] ending auction")
-	txID, err = assetCC.EndAuction(asset.ID)
+	_, err = assetCC.EndAuction(asset.ID)
 	check(err)
-	check(fabtic.WaitTx(txID))
+	time.Sleep(5 * time.Second)
 
 	asset, err = assetCC.GetAsset(asset.ID)
 	check(err)
