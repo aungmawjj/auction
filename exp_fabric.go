@@ -98,6 +98,9 @@ func ExpFabric() {
 		panic("failed to end auction")
 	}
 
+	err = fetchAuctionResult(auctionAddr.Bytes())
+	check(err)
+
 	// end auction on fabric
 	fmt.Println("\n[fabric] ending auction")
 	_, err = assetCC.EndAuction(asset.ID)
@@ -106,7 +109,7 @@ func ExpFabric() {
 
 	asset, err = assetCC.GetAsset(asset.ID)
 	check(err)
-	fmt.Printf("Asset Owner: %s", hex.EncodeToString(asset.Owner))
+	fmt.Println("Asset Owner:", hex.EncodeToString(asset.Owner))
 }
 
 func sha256Sum(data string) []byte {
