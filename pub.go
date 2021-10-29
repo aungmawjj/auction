@@ -8,7 +8,6 @@ import (
 	"fmt"
 	"log"
 	"net/http"
-	"os"
 	"strings"
 
 	"github.com/Shopify/sarama"
@@ -59,23 +58,10 @@ const (
 	defaultKafkaTopic = "test_topic"
 )
 
-var (
-	zkServers = flag.String("zk", os.Getenv("ZK_SERVERS"), "The comma-separated list of ZooKeeper servers. You can skip this flag by setting ZK_SERVERS environment variable")
-	topic     = flag.String("topic", defaultKafkaTopic, "The topic to produce to")
-	key       = flag.String("key", "", "The key of the message to produce. Can be empty.")
-	silent    = flag.Bool("silent", false, "Turn off printing the message's topic, partition, and offset to stdout")
-
-	logger = log.New(os.Stderr, "", log.LstdFlags)
-)
-
 func PublishAuctionResult(result *AuctionResult) error {
 	flag.Parse()
 
-	if *zkServers == "" {
-		log.Fatalln("no -zk specified. Alternatively, set the ZK_SERVERS environment variable")
-	}
-
-	conn, err := kb.NewConn(strings.Split(*zkServers, ","))
+	conn, err := kb.NewConn(strings.Split("localhost:2181", ","))
 	if err != nil {
 		log.Fatalln(err)
 	}
@@ -97,26 +83,20 @@ func PublishAuctionResult(result *AuctionResult) error {
 	}
 	defer func() {
 		if err := producer.Close(); err != nil {
-			logger.Println("Failed to close Kafka producer cleanly:", err)
+			log.Println("Failed to close Kafka producer cleanly:", err)
 		}
 	}()
 
 	fmt.Println("Type a message and press Enter key to produce it. CTRL+C to exit.")
 
-	message := &sarama.ProducerMessage{Topic: *topic, Partition: int32(0)}
-
-	if *key != "" {
-		message.Key = sarama.StringEncoder(*key)
-	}
+	message := &sarama.ProducerMessage{Topic: defaultKafkaTopic, Partition: int32(0)}
 
 	value, _ := json.Marshal(result)
 	message.Value = sarama.ByteEncoder(value)
 
-	partition, offset, err := producer.SendMessage(message)
+	_, _, err = producer.SendMessage(message)
 	if err != nil {
 		log.Fatalln(err)
-	} else if !*silent {
-		fmt.Printf("topic=%s\tpartition=%d\toffset=%d\n", *topic, partition, offset)
 	}
 	return nil
 }

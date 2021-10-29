@@ -25,7 +25,7 @@ const (
 func Subscribe() {
 	flag.Parse()
 
-	zkNodes := strings.Split("localhost", ",")
+	zkNodes := strings.Split("localhost:2181", ",")
 	conn, err := kb.NewConn(zkNodes)
 	if err != nil {
 		log.Fatalln(err)

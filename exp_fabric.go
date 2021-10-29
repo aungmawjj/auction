@@ -2,6 +2,7 @@ package main
 
 import (
 	"auction/contract"
+	"auction/fabric"
 	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
@@ -10,14 +11,10 @@ import (
 )
 
 func ExpFabric() {
-
-	fabtic := NewFabricClient("http://localhost:7050")
+	fabtic := fabric.NewFabricClient("http://localhost:7050")
 	fabtic.ChaincodePath = "github.com/aungmawjj/crosschain_cc"
 
-	assetCC := &AssetCC{
-		fabric: fabtic,
-	}
-
+	assetCC := fabric.NewAssetCC(fabtic)
 	fmt.Println("[fabric] deploying chaincode")
 	ccid, err := assetCC.Deploy()
 	check(err)
@@ -25,7 +22,7 @@ func ExpFabric() {
 	fabtic.ChaincodeID = ccid
 
 	time.Sleep(20 * time.Second)
-	asset := Asset{
+	asset := fabric.Asset{
 		ID:    sha256Sum("asset1"),
 		Owner: newTransactor("keys/key0").From.Bytes(),
 	}
@@ -59,7 +56,7 @@ func ExpFabric() {
 
 	// bind auction address to asset
 	fmt.Println("\n[fabric] binding auction to asset")
-	_, err = assetCC.SetAuction(SetAuctionArgs{
+	_, err = assetCC.SetAuction(fabric.SetAuctionArgs{
 		AssetID:   asset.ID,
 		AuctionID: auctionAddr.Bytes(),
 	})

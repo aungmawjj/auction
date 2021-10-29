@@ -1,4 +1,4 @@
-package main
+package fabric
 
 import (
 	"encoding/base64"
@@ -10,10 +10,23 @@ type AssetCC struct {
 	fabric *FabricClient
 }
 
+func NewAssetCC(fabric *FabricClient) *AssetCC {
+	return &AssetCC{
+		fabric: fabric,
+	}
+}
+
 type Asset struct {
 	ID             []byte
 	Owner          []byte
 	PendingAuction []byte
+}
+
+type Auction struct {
+	ID            []byte
+	Ended         bool
+	HighestBid    int64
+	HighestBidder []byte
 }
 
 type SetAuctionArgs struct {
@@ -30,9 +43,14 @@ func (cc *AssetCC) AddAsset(asset Asset) (string, error) {
 	return cc.fabric.SendChaincodeRequest("invoke", "addAsset", []string{string(b)})
 }
 
-func (cc *AssetCC) SetAuction(args SetAuctionArgs) (string, error) {
+func (cc *AssetCC) BindAuction(args SetAuctionArgs) (string, error) {
 	b, _ := json.Marshal(args)
-	return cc.fabric.SendChaincodeRequest("invoke", "setAuction", []string{string(b)})
+	return cc.fabric.SendChaincodeRequest("invoke", "bindAuction", []string{string(b)})
+}
+
+func (cc *AssetCC) UpdateAuction(auction Auction) (string, error) {
+	b, _ := json.Marshal(auction)
+	return cc.fabric.SendChaincodeRequest("invoke", "updateAuction", []string{string(b)})
 }
 
 func (cc *AssetCC) EndAuction(assetID []byte) (string, error) {
