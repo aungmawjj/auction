@@ -44,6 +44,7 @@ func Scanerio_1() {
 
 	auctionID := asset.PendingAuction.ID
 	auctionAddr := common.BytesToAddress(auctionID)
+	fmt.Println("auction ID: ", auctionAddr.Hex())
 
 	fmt.Println("\n[ethereum] bidding auction")
 	bidAuction(auctionAddr)
@@ -51,11 +52,11 @@ func Scanerio_1() {
 	fmt.Println("\n[ethereum] ending auction")
 	endAuction(auctionAddr)
 
-	time.Sleep(10 * time.Second)
+	time.Sleep(15 * time.Second)
 
 	asset, err = assetCC.GetAsset(asset.ID)
 	check(err)
-	fmt.Println("Asset Owner:", hex.EncodeToString(asset.Owner))
+	fmt.Println("Asset Owner:", common.Bytes2Hex(asset.Owner))
 
 }
 
