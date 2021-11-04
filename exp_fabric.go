@@ -3,7 +3,6 @@ package main
 import (
 	"auction/contract"
 	"auction/fabric"
-	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
 	"math/big"
@@ -56,9 +55,11 @@ func ExpFabric() {
 
 	// bind auction address to asset
 	fmt.Println("\n[fabric] binding auction to asset")
-	_, err = assetCC.SetAuction(fabric.SetAuctionArgs{
-		AssetID:   asset.ID,
-		AuctionID: auctionAddr.Bytes(),
+	_, err = assetCC.BindAuction(fabric.BindAuctionArgs{
+		AssetID: asset.ID,
+		Auction: fabric.Auction{
+			ID: auctionAddr.Bytes(),
+		},
 	})
 	check(err)
 	time.Sleep(5 * time.Second)
@@ -100,16 +101,11 @@ func ExpFabric() {
 
 	// end auction on fabric
 	fmt.Println("\n[fabric] ending auction")
-	_, err = assetCC.EndAuction(asset.ID)
+	_, err = assetCC.EndAuction(fabric.EndAuctionArgs{})
 	check(err)
 	time.Sleep(5 * time.Second)
 
 	asset, err = assetCC.GetAsset(asset.ID)
 	check(err)
 	fmt.Println("Asset Owner:", hex.EncodeToString(asset.Owner))
-}
-
-func sha256Sum(data string) []byte {
-	sum := sha256.Sum256([]byte(data))
-	return sum[:]
 }

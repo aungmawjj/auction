@@ -19,23 +19,39 @@ func NewAssetCC(fabric *FabricClient) *AssetCC {
 type Asset struct {
 	ID             []byte
 	Owner          []byte
-	PendingAuction []byte
+	PendingAuction *Auction
 }
 
 type Auction struct {
-	ID            []byte
-	Ended         bool
-	HighestBid    int64
+	ID       []byte
+	Platform string
+}
+
+type AuctionResult struct {
+	Auction
 	HighestBidder []byte
 }
 
-type SetAuctionArgs struct {
-	AssetID   []byte
-	AuctionID []byte
+type BindAuctionArgs struct {
+	AssetID []byte
+	Auction Auction
+}
+
+type EndAuctionArgs struct {
+	AssetID       []byte
+	AuctionResult AuctionResult
 }
 
 func (cc *AssetCC) Deploy() (string, error) {
 	return cc.fabric.SendChaincodeRequest("deploy", "Init", nil)
+}
+
+func (cc *AssetCC) SetChaincodeID(ccid string) {
+	cc.fabric.ChaincodeID = ccid
+}
+
+func (cc *AssetCC) GetCCID() string {
+	return cc.fabric.ChaincodeID
 }
 
 func (cc *AssetCC) AddAsset(asset Asset) (string, error) {
@@ -43,19 +59,14 @@ func (cc *AssetCC) AddAsset(asset Asset) (string, error) {
 	return cc.fabric.SendChaincodeRequest("invoke", "addAsset", []string{string(b)})
 }
 
-func (cc *AssetCC) BindAuction(args SetAuctionArgs) (string, error) {
+func (cc *AssetCC) BindAuction(args BindAuctionArgs) (string, error) {
 	b, _ := json.Marshal(args)
 	return cc.fabric.SendChaincodeRequest("invoke", "bindAuction", []string{string(b)})
 }
 
-func (cc *AssetCC) UpdateAuction(auction Auction) (string, error) {
-	b, _ := json.Marshal(auction)
-	return cc.fabric.SendChaincodeRequest("invoke", "updateAuction", []string{string(b)})
-}
-
-func (cc *AssetCC) EndAuction(assetID []byte) (string, error) {
-	s := base64.StdEncoding.EncodeToString(assetID)
-	return cc.fabric.SendChaincodeRequest("invoke", "endAuction", []string{s})
+func (cc *AssetCC) EndAuction(args EndAuctionArgs) (string, error) {
+	b, _ := json.Marshal(args)
+	return cc.fabric.SendChaincodeRequest("invoke", "endAuction", []string{string(b)})
 }
 
 func (cc *AssetCC) GetAsset(assetID []byte) (Asset, error) {

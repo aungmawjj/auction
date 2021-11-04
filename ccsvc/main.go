@@ -1,54 +1,124 @@
 package main
 
 import (
+	"auction/events"
 	"auction/fabric"
-	"encoding/hex"
+	"encoding/json"
+	"fmt"
 	"log"
+	"os"
+	"time"
 
+	"github.com/Shopify/sarama"
+	"github.com/ethereum/go-ethereum/accounts/abi/bind"
+	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
+	kb "github.com/philipjkim/kafka-brokers-go"
+	"github.com/wvanbergen/kafka/consumergroup"
 )
 
+const kafkaConsumerGroup = "ccsvc"
+const privKeyFile = "../keys/key0"
+
+var ethClient *ethclient.Client
+var ethTransactor *bind.TransactOpts
+var kafkaProducer sarama.SyncProducer
+
 func main() {
+	fmt.Println("Main Crosschain Service")
+	var err error
+	ethClient, err = ethclient.Dial(fmt.Sprintf("http://%s:8545", "localhost"))
+	check(err)
+
+	setupEthTransactor()
+
+	zkNodes := []string{"localhost:2181"}
+	kbConn, err := kb.NewConn(zkNodes)
+	check(err)
+	brokerList, _, err := kbConn.GetW()
+	check(err)
+
+	setupKafkaProducer(brokerList)
+	go runKafkaConsumer(zkNodes)
 
 	e := echo.New()
 	e.Use(middleware.Recover())
 
-	e.POST("/on_receive", handleOnReceiveAuctionResult)
-
-	Subscribe()
+	e.POST("/auction", handleCreateAuction)
 	e.Logger.Fatal(e.Start(":9000"))
 }
 
-type AuctionResultRequest struct {
-	Address []byte
+func setupKafkaProducer(brokerList []string) {
+	config := sarama.NewConfig()
+	config.Producer.RequiredAcks = sarama.WaitForAll
+	config.Producer.Return.Successes = true
+	config.Producer.Partitioner = sarama.NewManualPartitioner
+
+	var err error
+	kafkaProducer, err = sarama.NewSyncProducer(brokerList, config)
+	check(err)
 }
 
-type AuctionResult struct {
-	Address       []byte
-	Ended         bool
-	HighestBid    int64
-	HighestBidder []byte
-	FabricCCID    string
+func runKafkaConsumer(zkNodes []string) {
+	config := consumergroup.NewConfig()
+	config.Offsets.Initial = sarama.OffsetNewest
+	config.Offsets.ProcessingTimeout = 10 * time.Second
+
+	consumer, err := consumergroup.JoinConsumerGroup(kafkaConsumerGroup,
+		[]string{events.TopicOnEndAuction}, zkNodes, config)
+	check(err)
+
+	log.Printf("Subscribing %s", events.TopicOnEndAuction)
+
+	for message := range consumer.Messages() {
+		if message.Topic == events.TopicOnEndAuction {
+			var event events.OnEndAuction
+			err = json.Unmarshal(message.Value, &event)
+			if err != nil {
+				log.Printf("failed to parse event %+v", err)
+				continue
+			}
+			log.Println("Received kafka event: OnEndAuction")
+			go onEndAuction(event)
+			consumer.CommitUpto(message)
+		}
+	}
 }
 
-func onReceiveAuctionResult(result *AuctionResult) {
-	log.Printf("Received auction result, %s\n", hex.EncodeToString(result.Address))
+func check(err error) {
+	if err != nil {
+		panic(err)
+	}
+}
 
+func onEndAuction(event events.OnEndAuction) {
 	fabtic := fabric.NewFabricClient("http://localhost:7050")
-	fabtic.ChaincodePath = "github.com/aungmawjj/crosschain_cc"
-	fabtic.ChaincodeID = result.FabricCCID
+	fabtic.ChaincodeID = string(event.AssetCC)
 	assetCC := fabric.NewAssetCC(fabtic)
 
-	auction := fabric.Auction{
-		ID:            result.Address,
-		Ended:         result.Ended,
-		HighestBid:    result.HighestBid,
-		HighestBidder: result.HighestBidder,
+	args := fabric.EndAuctionArgs{
+		AssetID: event.AssetID,
+		AuctionResult: fabric.AuctionResult{
+			Auction: fabric.Auction{
+				ID: event.AuctionID,
+			},
+			HighestBidder: event.HighestBidder,
+		},
 	}
-
-	_, err := assetCC.UpdateAuction(auction)
+	_, err := assetCC.EndAuction(args)
 	if err != nil {
-		log.Printf("failed to update auction on fabric %+v", err)
+		log.Printf("failed to end auction on fabric %+v", err)
+		return
 	}
+	log.Printf("Ended auction on fabric")
+}
+
+func setupEthTransactor() {
+	f, err := os.Open(privKeyFile)
+	check(err)
+	defer f.Close()
+	ethTransactor, err = bind.NewTransactor(f, "password")
+	check(err)
+	ethTransactor.GasLimit = 1000000000000
 }
