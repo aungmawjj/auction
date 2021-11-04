@@ -56,7 +56,7 @@ func Scanerio_1() {
 
 	asset, err = assetCC.GetAsset(asset.ID)
 	check(err)
-	fmt.Println("Asset Owner:", common.Bytes2Hex(asset.Owner))
+	fmt.Println("Asset Owner:", common.BytesToAddress(asset.Owner).Hex())
 
 }
 
