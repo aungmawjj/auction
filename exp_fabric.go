@@ -10,16 +10,9 @@ import (
 )
 
 func ExpFabric() {
-	fabtic := fabric.NewFabricClient("http://localhost:7050")
-	fabtic.ChaincodePath = "github.com/aungmawjj/crosschain_cc"
+	assetCC := fabric.NewAssetCC()
 
-	assetCC := fabric.NewAssetCC(fabtic)
-	fmt.Println("[fabric] deploying chaincode")
-	ccid, err := assetCC.Deploy()
-	check(err)
-	fmt.Println("chaincode id:", ccid)
-	fabtic.ChaincodeID = ccid
-
+	var err error
 	time.Sleep(20 * time.Second)
 	asset := fabric.Asset{
 		ID:    sha256Sum("asset1"),

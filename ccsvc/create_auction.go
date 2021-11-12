@@ -39,10 +39,6 @@ func createAuction(req CreateAuctionRequest) {
 	}
 	log.Printf("Deployed auction on ethereum: %s", addr.Hex())
 
-	fabtic := fabric.NewFabricClient("http://localhost:7050")
-	fabtic.ChaincodeID = string(req.AssetCC)
-	assetCC := fabric.NewAssetCC(fabtic)
-
 	args := fabric.BindAuctionArgs{
 		AssetID: req.AssetID,
 		Auction: fabric.Auction{

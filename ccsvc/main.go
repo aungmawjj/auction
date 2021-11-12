@@ -24,12 +24,15 @@ const privKeyFile = "../keys/key0"
 var ethClient *ethclient.Client
 var ethTransactor *bind.TransactOpts
 var kafkaProducer sarama.SyncProducer
+var assetCC *fabric.AssetCC
 
 func main() {
 	fmt.Println("Main Crosschain Service")
 	var err error
 	ethClient, err = ethclient.Dial(fmt.Sprintf("http://%s:8545", "localhost"))
 	check(err)
+
+	assetCC = fabric.NewAssetCC()
 
 	setupEthTransactor()
 
@@ -93,10 +96,6 @@ func check(err error) {
 }
 
 func onEndAuction(event events.OnEndAuction) {
-	fabtic := fabric.NewFabricClient("http://localhost:7050")
-	fabtic.ChaincodeID = string(event.AssetCC)
-	assetCC := fabric.NewAssetCC(fabtic)
-
 	args := fabric.EndAuctionArgs{
 		AssetID: event.AssetID,
 		AuctionResult: fabric.AuctionResult{

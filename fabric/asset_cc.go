@@ -4,15 +4,51 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"log"
+	"os"
+	"path/filepath"
+
+	"github.com/hyperledger/fabric-sdk-go/pkg/core/config"
+	"github.com/hyperledger/fabric-sdk-go/pkg/gateway"
 )
 
 type AssetCC struct {
-	fabric *FabricClient
+	contract *gateway.Contract
 }
 
-func NewAssetCC(fabric *FabricClient) *AssetCC {
+func NewAssetCC() *AssetCC {
+	err := os.Setenv("DISCOVERY_AS_LOCALHOST", "true")
+	if err != nil {
+		log.Fatalf("Error setting DISCOVERY_AS_LOCALHOST environemnt variable: %v", err)
+	}
+
+	ccpPath := filepath.Join(
+		"home",
+		"ubuntu",
+		"fabric2",
+		"test-network",
+		"organizations",
+		"peerOrganizations",
+		"org1.example.com",
+		"connection-org1.yaml",
+	)
+
+	gw, err := gateway.Connect(
+		gateway.WithConfig(config.FromFile(filepath.Clean(ccpPath))),
+		nil,
+	)
+	if err != nil {
+		log.Fatalf("Failed to connect to gateway: %v", err)
+	}
+	defer gw.Close()
+
+	network, err := gw.GetNetwork("mychannel")
+	if err != nil {
+		log.Fatalf("Failed to get network: %v", err)
+	}
+
 	return &AssetCC{
-		fabric: fabric,
+		contract: network.GetContract("asset"),
 	}
 }
 
@@ -42,37 +78,29 @@ type EndAuctionArgs struct {
 	AuctionResult AuctionResult
 }
 
-func (cc *AssetCC) Deploy() (string, error) {
-	return cc.fabric.SendChaincodeRequest("deploy", "Init", nil)
-}
-
-func (cc *AssetCC) SetChaincodeID(ccid string) {
-	cc.fabric.ChaincodeID = ccid
-}
-
 func (cc *AssetCC) GetCCID() string {
-	return cc.fabric.ChaincodeID
+	return "asset"
 }
 
-func (cc *AssetCC) AddAsset(asset Asset) (string, error) {
+func (cc *AssetCC) AddAsset(asset Asset) ([]byte, error) {
 	b, _ := json.Marshal(asset)
-	return cc.fabric.SendChaincodeRequest("invoke", "addAsset", []string{string(b)})
+	return cc.contract.SubmitTransaction("AddAsset", string(b))
 }
 
-func (cc *AssetCC) BindAuction(args BindAuctionArgs) (string, error) {
+func (cc *AssetCC) BindAuction(args BindAuctionArgs) ([]byte, error) {
 	b, _ := json.Marshal(args)
-	return cc.fabric.SendChaincodeRequest("invoke", "bindAuction", []string{string(b)})
+	return cc.contract.SubmitTransaction("BindAuction", string(b))
 }
 
-func (cc *AssetCC) EndAuction(args EndAuctionArgs) (string, error) {
+func (cc *AssetCC) EndAuction(args EndAuctionArgs) ([]byte, error) {
 	b, _ := json.Marshal(args)
-	return cc.fabric.SendChaincodeRequest("invoke", "endAuction", []string{string(b)})
+	return cc.contract.SubmitTransaction("EndAuction", string(b))
 }
 
 func (cc *AssetCC) GetAsset(assetID []byte) (Asset, error) {
 	var asset Asset
 	s := base64.StdEncoding.EncodeToString(assetID)
-	res, err := cc.fabric.SendChaincodeRequest("query", "getAsset", []string{s})
+	res, err := cc.contract.EvaluateTransaction("GetAsset", s)
 	if err != nil {
 		return asset, err
 	}

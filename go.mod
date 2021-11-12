@@ -5,6 +5,7 @@ go 1.16
 require (
 	github.com/Shopify/sarama v1.30.0
 	github.com/ethereum/go-ethereum v1.9.12
+	github.com/hyperledger/fabric-sdk-go v1.0.0
 	github.com/labstack/echo/v4 v4.6.1
 	github.com/mattn/go-colorable v0.1.11 // indirect
 	github.com/philipjkim/kafka-brokers-go v0.0.0-20170113033100-cc4b76c706b4

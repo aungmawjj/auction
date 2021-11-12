@@ -26,12 +26,7 @@ var assetCC *fabric.AssetCC
 
 func Scanerio_1() {
 	ethClient = newEthClient()
-	fabtic := fabric.NewFabricClient("http://localhost:7050")
-	fabtic.ChaincodePath = "github.com/aungmawjj/crosschain_cc"
-	assetCC = fabric.NewAssetCC(fabtic)
-
-	fmt.Println("[fabric] deploying asset chaincode")
-	deployAssetCC()
+	assetCC = fabric.NewAssetCC()
 
 	fmt.Println("[fabric] Adding asset")
 	asset := addAsset()
@@ -58,14 +53,6 @@ func Scanerio_1() {
 	check(err)
 	fmt.Println("Asset Owner:", common.BytesToAddress(asset.Owner).Hex())
 
-}
-
-func deployAssetCC() {
-	ccid, err := assetCC.Deploy()
-	check(err)
-	fmt.Println("chaincode id:", ccid)
-	assetCC.SetChaincodeID(ccid)
-	time.Sleep(15 * time.Second)
 }
 
 func addAsset() fabric.Asset {
