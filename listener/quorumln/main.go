@@ -14,7 +14,7 @@ import (
 	kb "github.com/philipjkim/kafka-brokers-go"
 )
 
-const kafkaConsumerGroup = "eth"
+const kafkaConsumerGroup = "quorum"
 
 var ethClient *ethclient.Client
 var kafkaProducer sarama.SyncProducer
