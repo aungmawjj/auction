@@ -33,6 +33,8 @@ func Scanerio_1() {
 	quorumClient, err = ethclient.Dial(fmt.Sprintf("http://%s:8546", "localhost"))
 	check(err)
 
+	assetCC = fabric.NewAssetCC()
+
 	auctionWithQuorum()
 	auctionWithEthereum()
 }
