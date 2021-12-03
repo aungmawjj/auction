@@ -33,7 +33,13 @@ func Scanerio_1() {
 	quorumClient, err = ethclient.Dial(fmt.Sprintf("http://%s:8546", "localhost"))
 	check(err)
 
-	assetCC = fabric.NewAssetCC()
+	auctionWithQuorum()
+	auctionWithEthereum()
+}
+
+func auctionWithEthereum() {
+	var err error
+	fmt.Printf("\nAuction with Quorum\n\n")
 
 	fmt.Println("[fabric] Adding asset")
 	asset := addAsset("asset1")
@@ -59,10 +65,14 @@ func Scanerio_1() {
 	asset, err = assetCC.GetAsset(asset.ID)
 	check(err)
 	fmt.Println("Asset Owner:", common.BytesToAddress(asset.Owner).Hex())
+}
 
-	fmt.Printf("\nAuction with Quorum\n")
+func auctionWithQuorum() {
+	var err error
+	fmt.Printf("\nAuction with Quorum\n\n")
+
 	fmt.Println("[fabric] Adding asset")
-	asset = addAsset("asset2")
+	asset := addAsset("asset2")
 
 	fmt.Println("[ccsvc] Creating auction for asset, platform: quorum")
 	createAuction([]byte(assetCC.GetCCID()), asset.ID, "quorum")
@@ -70,8 +80,8 @@ func Scanerio_1() {
 	asset, err = assetCC.GetAsset(asset.ID)
 	check(err)
 
-	auctionID = asset.PendingAuction.ID
-	auctionAddr = common.BytesToAddress(auctionID)
+	auctionID := asset.PendingAuction.ID
+	auctionAddr := common.BytesToAddress(auctionID)
 	fmt.Println("auction ID: ", auctionAddr.Hex())
 
 	fmt.Println("\n[quorum] bidding auction")

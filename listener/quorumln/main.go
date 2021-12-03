@@ -58,7 +58,7 @@ func runKafkaConsumer(zkNodes []string) {
 	log.Printf("Subscribing %s", events.TopicOnBindAuctionQuorum)
 
 	for message := range consumer.Messages() {
-		if message.Topic == events.TopicOnBindAuction {
+		if message.Topic == events.TopicOnBindAuctionQuorum {
 			var event events.OnBindAuction
 			err = json.Unmarshal(message.Value, &event)
 			if err != nil {

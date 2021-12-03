@@ -122,5 +122,5 @@ func setupEthTransactor() {
 	defer f.Close()
 	ethTransactor, err = bind.NewTransactor(f, "password")
 	check(err)
-	ethTransactor.GasLimit = 1000000000000
+	ethTransactor.GasLimit = 1000000000
 }
