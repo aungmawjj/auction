@@ -22,10 +22,17 @@ type CreateAuctionRequest struct {
 }
 
 var ethClient *ethclient.Client
+var quorumClient *ethclient.Client
 var assetCC *fabric.AssetCC
 
 func Scanerio_1() {
-	ethClient = newEthClient()
+	var err error
+	ethClient, err = ethclient.Dial(fmt.Sprintf("http://%s:8545", "localhost"))
+	check(err)
+
+	quorumClient, err = ethclient.Dial(fmt.Sprintf("http://%s:8546", "localhost"))
+	check(err)
+
 	assetCC = fabric.NewAssetCC()
 
 	fmt.Println("[fabric] Adding asset")
@@ -34,7 +41,7 @@ func Scanerio_1() {
 	fmt.Println("[ccsvc] Creating auction for asset")
 	createAuction([]byte(assetCC.GetCCID()), asset.ID, "ethereum")
 
-	asset, err := assetCC.GetAsset(asset.ID)
+	asset, err = assetCC.GetAsset(asset.ID)
 	check(err)
 
 	auctionID := asset.PendingAuction.ID
@@ -42,10 +49,10 @@ func Scanerio_1() {
 	fmt.Println("auction ID: ", auctionAddr.Hex())
 
 	fmt.Println("\n[ethereum] bidding auction")
-	bidAuction(auctionAddr)
+	bidAuction(auctionAddr, ethClient)
 
 	fmt.Println("\n[ethereum] ending auction")
-	endAuction(auctionAddr)
+	endAuction(auctionAddr, ethClient)
 
 	time.Sleep(15 * time.Second)
 
@@ -53,6 +60,7 @@ func Scanerio_1() {
 	check(err)
 	fmt.Println("Asset Owner:", common.BytesToAddress(asset.Owner).Hex())
 
+	fmt.Printf("\nAuction with Quorum\n")
 	fmt.Println("[fabric] Adding asset")
 	asset = addAsset("asset2")
 
@@ -67,10 +75,10 @@ func Scanerio_1() {
 	fmt.Println("auction ID: ", auctionAddr.Hex())
 
 	fmt.Println("\n[quorum] bidding auction")
-	bidAuction(auctionAddr)
+	bidAuction(auctionAddr, quorumClient)
 
 	fmt.Println("\n[quorum] ending auction")
-	endAuction(auctionAddr)
+	endAuction(auctionAddr, quorumClient)
 
 	time.Sleep(15 * time.Second)
 
@@ -107,12 +115,12 @@ func createAuction(assetCC, assetID []byte, platform string) {
 	time.Sleep(10 * time.Second)
 }
 
-func bidAuction(addr common.Address) {
-	auctionSession := newAuctionSession(addr, ethClient, "keys/key1")
+func bidAuction(addr common.Address, client *ethclient.Client) {
+	auctionSession := newAuctionSession(addr, client, "keys/key1")
 	auctionSession.TransactOpts.Value = big.NewInt(1000)
 	tx, err := auctionSession.Bid()
 	check(err)
-	success, err := checkTx(ethClient, tx.Hash())
+	success, err := checkTx(client, tx.Hash())
 	check(err)
 	printTxStatus(success)
 	if !success {
@@ -129,11 +137,11 @@ func bidAuction(addr common.Address) {
 	fmt.Println("highest bid:", highestBid)
 }
 
-func endAuction(addr common.Address) {
-	auctionSession := newAuctionSession(addr, ethClient, "keys/key0")
+func endAuction(addr common.Address, client *ethclient.Client) {
+	auctionSession := newAuctionSession(addr, client, "keys/key0")
 	tx, err := auctionSession.EndAuction()
 	check(err)
-	success, err := checkTx(ethClient, tx.Hash())
+	success, err := checkTx(client, tx.Hash())
 	check(err)
 	printTxStatus(success)
 	if !success {
