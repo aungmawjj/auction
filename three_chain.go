@@ -29,10 +29,10 @@ func Scanerio_1() {
 	assetCC = fabric.NewAssetCC()
 
 	fmt.Println("[fabric] Adding asset")
-	asset := addAsset()
+	asset := addAsset("asset1")
 
 	fmt.Println("[ccsvc] Creating auction for asset")
-	createAuction([]byte(assetCC.GetCCID()), asset.ID)
+	createAuction([]byte(assetCC.GetCCID()), asset.ID, "ethereum")
 
 	asset, err := assetCC.GetAsset(asset.ID)
 	check(err)
@@ -53,11 +53,35 @@ func Scanerio_1() {
 	check(err)
 	fmt.Println("Asset Owner:", common.BytesToAddress(asset.Owner).Hex())
 
+	fmt.Println("[fabric] Adding asset")
+	asset = addAsset("asset2")
+
+	fmt.Println("[ccsvc] Creating auction for asset, platform: quorum")
+	createAuction([]byte(assetCC.GetCCID()), asset.ID, "quorum")
+
+	asset, err = assetCC.GetAsset(asset.ID)
+	check(err)
+
+	auctionID = asset.PendingAuction.ID
+	auctionAddr = common.BytesToAddress(auctionID)
+	fmt.Println("auction ID: ", auctionAddr.Hex())
+
+	fmt.Println("\n[quorum] bidding auction")
+	bidAuction(auctionAddr)
+
+	fmt.Println("\n[quorum] ending auction")
+	endAuction(auctionAddr)
+
+	time.Sleep(15 * time.Second)
+
+	asset, err = assetCC.GetAsset(asset.ID)
+	check(err)
+	fmt.Println("Asset Owner:", common.BytesToAddress(asset.Owner).Hex())
 }
 
-func addAsset() fabric.Asset {
+func addAsset(id string) fabric.Asset {
 	asset := fabric.Asset{
-		ID:    sha256Sum("asset1"),
+		ID:    sha256Sum(id),
 		Owner: newTransactor("keys/key0").From.Bytes(),
 	}
 	_, err := assetCC.AddAsset(asset)
@@ -69,11 +93,12 @@ func addAsset() fabric.Asset {
 	return asset
 }
 
-func createAuction(assetCC, assetID []byte) {
+func createAuction(assetCC, assetID []byte, platform string) {
 	buf := bytes.NewBuffer(nil)
 	json.NewEncoder(buf).Encode(CreateAuctionRequest{
-		AssetCC: []byte(assetCC),
-		AssetID: assetID,
+		AssetCC:  []byte(assetCC),
+		AssetID:  assetID,
+		Platform: platform,
 	})
 
 	resp, err := http.Post("http://localhost:9000/auction", "application/json", buf)

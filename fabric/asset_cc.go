@@ -24,6 +24,7 @@ func NewAssetCC() *AssetCC {
 	}
 
 	ccpPath := filepath.Join(
+		"/",
 		"home",
 		"ubuntu",
 		"fabric2",
@@ -131,6 +132,7 @@ func populateWallet(wallet *gateway.Wallet) error {
 	credPath := filepath.Join(
 		"/",
 		"home",
+		"ubuntu",
 		"fabric2",
 		"test-network",
 		"organizations",
@@ -141,7 +143,7 @@ func populateWallet(wallet *gateway.Wallet) error {
 		"msp",
 	)
 
-	certPath := filepath.Join(credPath, "signcerts", "cert.pem")
+	certPath := filepath.Join(credPath, "signcerts", "User1@org1.example.com-cert.pem")
 	// read the certificate pem
 	cert, err := ioutil.ReadFile(filepath.Clean(certPath))
 	if err != nil {

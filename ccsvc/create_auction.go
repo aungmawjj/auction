@@ -29,8 +29,18 @@ func handleCreateAuction(c echo.Context) error {
 }
 
 func createAuction(req CreateAuctionRequest) {
-	var err error
 	log.Println("Creating auction for asset")
+	if req.Platform == "quorum" {
+		log.Println("Platform: Quorum")
+		createAuctionQuorum(req)
+	} else {
+		log.Println("Platform: Ethereum")
+		createAuctionEthereum(req)
+	}
+}
+
+func createAuctionEthereum(req CreateAuctionRequest) {
+	var err error
 
 	addr, _, _, err := contract.DeployAuction(ethTransactor, ethClient)
 	if err != nil {
@@ -63,4 +73,39 @@ func createAuction(req CreateAuctionRequest) {
 		return
 	}
 	log.Printf("Published event, OnBindAuction")
+}
+
+func createAuctionQuorum(req CreateAuctionRequest) {
+	var err error
+	addr, _, _, err := contract.DeployAuction(ethTransactor, quorumClient)
+	if err != nil {
+		log.Printf("failed to deploy auction %+v", err)
+		return
+	}
+	log.Printf("Deployed auction on quorum: %s", addr.Hex())
+
+	args := fabric.BindAuctionArgs{
+		AssetID: req.AssetID,
+		Auction: fabric.Auction{
+			ID: addr.Bytes(),
+		},
+	}
+	assetCC.BindAuction(args)
+
+	log.Printf("Bind auction on fabric")
+
+	message := &sarama.ProducerMessage{Topic: events.TopicOnBindAuctionQuorum, Partition: 0}
+	value, _ := json.Marshal(events.OnBindAuction{
+		AssetCC:   req.AssetCC,
+		AssetID:   req.AssetID,
+		AuctionID: addr.Bytes(),
+	})
+	message.Value = sarama.ByteEncoder(value)
+
+	_, _, err = kafkaProducer.SendMessage(message)
+	if err != nil {
+		log.Printf("failed to send kafka message %+v", err)
+		return
+	}
+	log.Printf("Published event %s", events.TopicOnBindAuctionQuorum)
 }

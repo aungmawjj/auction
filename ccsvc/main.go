@@ -22,6 +22,7 @@ const kafkaConsumerGroup = "ccsvc"
 const privKeyFile = "../keys/key0"
 
 var ethClient *ethclient.Client
+var quorumClient *ethclient.Client
 var ethTransactor *bind.TransactOpts
 var kafkaProducer sarama.SyncProducer
 var assetCC *fabric.AssetCC
@@ -30,6 +31,8 @@ func main() {
 	fmt.Println("Main Crosschain Service")
 	var err error
 	ethClient, err = ethclient.Dial(fmt.Sprintf("http://%s:8545", "localhost"))
+	check(err)
+	quorumClient, err = ethclient.Dial(fmt.Sprintf("http://%s:8546", "localhost"))
 	check(err)
 
 	assetCC = fabric.NewAssetCC()
