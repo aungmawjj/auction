@@ -22,7 +22,7 @@ func deployCrossChainAuctions() ([]string, error) {
 		log.Printf("failed to deploy auction %+v", err)
 		return nil, err
 	}
-	log.Printf("Deployed auction on ethereum: %s", quorumAddr.Hex())
+	log.Printf("Deployed auction on quorum: %s", quorumAddr.Hex())
 
 	return []string{ethAddr.Hex(), quorumAddr.Hex()}, nil
 }

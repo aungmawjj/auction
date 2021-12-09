@@ -44,8 +44,7 @@ func main() {
 	check(err)
 
 	setupKafkaProducer(brokerList)
-	go runKafkaConsumer(zkNodes)
-
+	runKafkaConsumer(zkNodes)
 }
 
 func setupKafkaProducer(brokerList []string) {
