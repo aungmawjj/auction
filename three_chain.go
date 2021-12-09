@@ -40,10 +40,10 @@ func ThreeChainAuction() {
 	auction = startAuction(asset.ID, []string{"ethereum", "quorum"})
 
 	fmt.Println("[ethereum] Bid auction")
-	// bidAuction(ethClient, auction.CrossAuctionIDs[0], "keys/key1", 500)
+	bidAuction(ethClient, auction.CrossAuctionIDs[0], "keys/key1", 500)
 
 	fmt.Println("[quorum] Bid auction")
-	// bidAuction(quorumClient, auction.CrossAuctionIDs[1], "keys/key2", 1000)
+	bidAuction(quorumClient, auction.CrossAuctionIDs[1], "keys/key2", 1000)
 
 	fmt.Println("[fabric] End auction")
 	endAuction(auction)
@@ -74,7 +74,7 @@ func startAuction(assetID string, platforms []string) *fabric.Auction {
 	fmt.Println("AuctionID: ", auctionID)
 
 	// mock
-	mockBindAuction(auctionID)
+	// mockBindAuction(auctionID)
 
 	for {
 		time.Sleep(1 * time.Second)
@@ -92,7 +92,7 @@ func endAuction(auction *fabric.Auction) {
 	check(err)
 
 	// mock
-	mockEndAuction(auction.ID)
+	// mockEndAuction(auction.ID)
 
 	for {
 		time.Sleep(1 * time.Second)
@@ -107,7 +107,7 @@ func endAuction(auction *fabric.Auction) {
 
 			asset, err := assetCC.GetAsset(auction.AssetID)
 			check(err)
-			fmt.Println("Asset Owner: ", asset.Owner)
+			fmt.Println("New Asset Owner: ", asset.Owner)
 
 			break
 		}

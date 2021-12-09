@@ -12,8 +12,6 @@ import (
 	"github.com/Shopify/sarama"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/ethclient"
-	"github.com/labstack/echo/v4"
-	"github.com/labstack/echo/v4/middleware"
 	kb "github.com/philipjkim/kafka-brokers-go"
 	"github.com/wvanbergen/kafka/consumergroup"
 )
@@ -48,11 +46,6 @@ func main() {
 	setupKafkaProducer(brokerList)
 	go runKafkaConsumer(zkNodes)
 
-	e := echo.New()
-	e.Use(middleware.Recover())
-
-	e.POST("/auction", handleCreateAuction)
-	e.Logger.Fatal(e.Start(":9000"))
 }
 
 func setupKafkaProducer(brokerList []string) {
@@ -72,21 +65,32 @@ func runKafkaConsumer(zkNodes []string) {
 	config.Offsets.ProcessingTimeout = 10 * time.Second
 
 	consumer, err := consumergroup.JoinConsumerGroup(kafkaConsumerGroup,
-		[]string{events.TopicOnEndAuction}, zkNodes, config)
+		[]string{events.TopicOnStartAuction, events.TopicOnEndAuction}, zkNodes, config)
 	check(err)
 
-	log.Printf("Subscribing %s", events.TopicOnEndAuction)
+	log.Printf("Subscribing %v", []string{events.TopicOnStartAuction, events.TopicOnEndAuction})
 
 	for message := range consumer.Messages() {
 		if message.Topic == events.TopicOnEndAuction {
-			var event events.OnEndAuction
-			err = json.Unmarshal(message.Value, &event)
+			var payload events.AuctionEventPayload
+			err = json.Unmarshal(message.Value, &payload)
 			if err != nil {
 				log.Printf("failed to parse event %+v", err)
 				continue
 			}
-			log.Println("Received kafka event: OnEndAuction")
-			go onEndAuction(event)
+			log.Println("Received kafka event: ", events.TopicOnEndAuction)
+			go onEndAuction(payload.AuctionID)
+			consumer.CommitUpto(message)
+
+		} else if message.Topic == events.TopicOnStartAuction {
+			var payload events.AuctionEventPayload
+			err = json.Unmarshal(message.Value, &payload)
+			if err != nil {
+				log.Printf("failed to parse event %+v", err)
+				continue
+			}
+			log.Println("Received kafka event: ", events.TopicOnStartAuction)
+			go onStartAuction(payload.AuctionID)
 			consumer.CommitUpto(message)
 		}
 	}
@@ -98,21 +102,37 @@ func check(err error) {
 	}
 }
 
-func onEndAuction(event events.OnEndAuction) {
+func onStartAuction(auctionID int) {
+	addrs, err := deployCrossChainAuctions()
+	check(err)
+	args := fabric.BindAuctionArgs{
+		AuctionID:       auctionID,
+		CrossAuctionIDs: addrs,
+	}
+
+	fmt.Println("Binding cross-chain auctions")
+	_, err = assetCC.BindAuction(args)
+	check(err)
+}
+
+func onEndAuction(auctionID int) {
+	auction, err := assetCC.GetAuction(auctionID)
+	check(err)
+
+	highestBids := make([]int, 2)
+	highestBidders := make([]string, 2)
+
+	highestBids[0], highestBidders[0] = getAuctionInfo(auction.CrossAuctionIDs[0], ethClient)
+	highestBids[1], highestBidders[1] = getAuctionInfo(auction.CrossAuctionIDs[1], quorumClient)
+
 	args := fabric.EndAuctionArgs{
-		AssetID: event.AssetID,
-		AuctionResult: fabric.AuctionResult{
-			Auction: fabric.Auction{
-				ID: event.AuctionID,
-			},
-			HighestBidder: event.HighestBidder,
-		},
+		AuctionID:      auctionID,
+		HighestBids:    highestBids,
+		HighestBidders: highestBidders,
 	}
-	_, err := assetCC.EndAuction(args)
-	if err != nil {
-		log.Printf("failed to end auction on fabric %+v", err)
-		return
-	}
+
+	_, err = assetCC.EndAuction(args)
+	check(err)
 	log.Printf("Ended auction on fabric")
 }
 

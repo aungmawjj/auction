@@ -6,6 +6,10 @@ type OnBindAuction struct {
 	AuctionID []byte
 }
 
+type AuctionEventPayload struct {
+	AuctionID int
+}
+
 type OnEndAuction struct {
 	AssetCC       []byte
 	AssetID       []byte
