@@ -1,13 +1,13 @@
 package fabric
 
 import (
-	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"log"
 	"os"
 	"path/filepath"
+	"strconv"
 
 	"github.com/hyperledger/fabric-sdk-go/pkg/core/config"
 	"github.com/hyperledger/fabric-sdk-go/pkg/gateway"
@@ -68,38 +68,50 @@ func NewAssetCC() *AssetCC {
 }
 
 type Asset struct {
-	ID             []byte
-	Owner          []byte
-	PendingAuction *Auction
+	ID               string
+	Owner            string
+	PendingAuctionID int
 }
 
 type Auction struct {
-	ID       []byte
-	Platform string
+	ID              int
+	AssetID         string
+	Platforms       []string
+	CrossAuctionIDs []string
+	Status          string
+
+	HighestBid         int
+	HighestBidder      string
+	HighestBidPlatform string
 }
 
-type AuctionResult struct {
-	Auction
-	HighestBidder []byte
+type StartAuctionArgs struct {
+	AssetID   string
+	Platforms []string
 }
 
 type BindAuctionArgs struct {
-	AssetID []byte
-	Auction Auction
+	AuctionID       int
+	CrossAuctionIDs []string
 }
 
 type EndAuctionArgs struct {
-	AssetID       []byte
-	AuctionResult AuctionResult
+	AuctionID      int
+	HighestBids    []int
+	HighestBidders []string
 }
 
 func (cc *AssetCC) GetCCID() string {
 	return "asset"
 }
 
-func (cc *AssetCC) AddAsset(asset Asset) ([]byte, error) {
-	b, _ := json.Marshal(asset)
-	return cc.contract.SubmitTransaction("AddAsset", string(b))
+func (cc *AssetCC) AddAsset(id, owner string) ([]byte, error) {
+	return cc.contract.SubmitTransaction("AddAsset", id, owner)
+}
+
+func (cc *AssetCC) StartAuction(args StartAuctionArgs) ([]byte, error) {
+	b, _ := json.Marshal(args)
+	return cc.contract.SubmitTransaction("StartAuction", string(b))
 }
 
 func (cc *AssetCC) BindAuction(args BindAuctionArgs) ([]byte, error) {
@@ -112,19 +124,38 @@ func (cc *AssetCC) EndAuction(args EndAuctionArgs) ([]byte, error) {
 	return cc.contract.SubmitTransaction("EndAuction", string(b))
 }
 
-func (cc *AssetCC) GetAsset(assetID []byte) (Asset, error) {
+func (cc *AssetCC) SetAuctionEnding(assetID string) ([]byte, error) {
+	return cc.contract.SubmitTransaction("SetAuctionEnding", assetID)
+}
+
+func (cc *AssetCC) GetAsset(assetID string) (*Asset, error) {
 	var asset Asset
-	s := base64.StdEncoding.EncodeToString(assetID)
-	res, err := cc.contract.EvaluateTransaction("GetAsset", s)
+	res, err := cc.contract.EvaluateTransaction("GetAsset", assetID)
 	if err != nil {
-		return asset, err
+		return nil, err
 	}
-	b := []byte(res)
-	if b == nil {
-		return asset, fmt.Errorf("asset not found")
+	err = json.Unmarshal(res, &asset)
+	return &asset, err
+}
+
+func (cc *AssetCC) GetAuction(auctionID int) (*Auction, error) {
+	var auction Auction
+	res, err := cc.contract.EvaluateTransaction("GetAuction", strconv.Itoa(auctionID))
+	if err != nil {
+		return nil, err
 	}
-	err = json.Unmarshal(b, &asset)
-	return asset, err
+	err = json.Unmarshal(res, &auction)
+	return &auction, err
+}
+
+func (cc *AssetCC) GetLastAuctionID() (int, error) {
+	res, err := cc.contract.EvaluateTransaction("GetLastAuctionID")
+	if err != nil {
+		return 0, err
+	}
+	var id int
+	err = json.Unmarshal(res, &id)
+	return id, err
 }
 
 func populateWallet(wallet *gateway.Wallet) error {
